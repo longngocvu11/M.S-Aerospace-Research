@@ -1,0 +1,84 @@
+
+//   File Name: turbofan_example.run                                              
+//   Date: January 2010                                          
+//   Author: P. Johnson                                     
+//                                                                     
+//   Description: Model to demonstrate a twin spool turbofan
+//                
+//                                                            
+//------------------------------------------------------------------------
+
+
+#include <InterpIncludes.ncp> // file contains unit names, socket types, error statements, and some constants
+
+//------------------------------------------------------------------------
+//                          Set Thermodynamic Package
+//------------------------------------------------------------------------
+
+//setThermoPackage("allFuel");  // Works
+setThermoPackage("CEA", "thermo.inp", "trans.inp", "Air", "H2O", "H2", "O2", "N2", "CO2", "O", "N", "NO", "");
+//setThermoPackage("GasTbl");  // air properties, developed by Pratt and Whitney
+//setThermoPackage("Janaf"); // air properties, developed by Honeywell    // Works at low MN
+//setThermoPackage("FPT"); // custom fluid property tables, developed by the user
+
+//------------------------------------------------------------------------
+//                          User-Defined Elements
+//------------------------------------------------------------------------
+
+
+//------------------------------------------------------------------------
+//                    User-Defined Tables and Functions
+//------------------------------------------------------------------------
+
+// User-defined functions
+// printResults() prints some model results to the command window
+// setupDesign() configures the model to run in design mode
+// setupOffDsign() configures the model to run in off-design mode
+#include "user.fnc";
+
+//------------------------------------------------------------------------
+//                         User-Defined Variables 
+//------------------------------------------------------------------------
+
+
+//------------------------------------------------------------------------
+//                            Model Definition 
+//------------------------------------------------------------------------
+
+// Load the that file contains the model definition (element instantiations, links, and solver variables)
+#include "Scramjet.mdl"; 
+
+// Load the CaseRowViewer file
+//#include "EngResultsRow.view";
+// Save run results in output file EngDesign.txt
+//os_EngResultsRow.filename = "EngResults.txt"; // set the viewer output file name
+// Add viewer to solver postExecutionSequence.  This will automatically update the
+// viewer after every time step convergence.
+//solver.postExecutionSequence.append("EngResultsRow");
+
+//------------------------------------------------------------------------
+//                          Running the Model
+//------------------------------------------------------------------------
+
+// Call function that sets up design mode
+// Solve for W_in from given A2 
+
+//setOption("switchDes", "OFFDESIGN");
+//solver.addIndependent("ind_Wair");
+//solver.addDependent("dep_A2");	
+
+//setOption("solutionMode", "ONE_PASS");
+
+// Load the design point values
+#include "Design.inp";
+
+// Run the model
+run();
+
+// Print model results to the command window
+printResults(); // Contained in user.fnc
+
+// Update the viewer with the last case run
+//EngResultsRow.update(); 
+
+quit();
