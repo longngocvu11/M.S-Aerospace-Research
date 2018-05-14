@@ -93,7 +93,7 @@ class SJBurner1D extends Element {
 	  description = "Wall temperature";
   }
   real Pr {
-	  value = 0.72		IOstatus = INPUT;	units = NONE;
+	  value = 0.72;		IOstatus = INPUT;	units = NONE;
 	  description = "Prandtl number";
   }
   // FAR stoic
@@ -152,6 +152,8 @@ class SJBurner1D extends Element {
   // MECHANICAL PORTS
   
   // FLOW STATIONS 
+  FlowStation Fl_Otemp;
+  Fl_Otemp.setOption("switchTransport", "EQUIL");
   FlowStation Fstemp1;
   Fstemp1.setOption("switchTransport", "EQUIL");
   FlowStation Fstemp2;
@@ -194,21 +196,6 @@ class SJBurner1D extends Element {
 	real e = 2.71828;
 	//Fl_I.Aphy = a1-Ajet3;
 	
-	/*
-	real dv = Fl_I.mus;
-	real D2 = (4.*Ain/3.1416)**0.5;  // in ft
-	real Re2 = (rhoin*Vin*D2)/dv;
-	real mt = 0.037*D2/(Re2**0.2); // in ft
-	real Remt = (rhoin*Vin*mt)/dv;
-	//real Ps2 = Psin;
-	real MN2 = MNin;
-	real Ps3; 
-	
-	// Test
-	cout << endl;
-	cout << "Re2 = " << Re2 << endl;
-	*/	
-	
 	//------------------------------------------------------------
     // Text Output Function
     //------------------------------------------------------------
@@ -240,7 +227,8 @@ class SJBurner1D extends Element {
 				"O2text : ??.???????? = O2",
 				"H2Otext : ??.???????? = H2O",
 				"CO2text : ??.???????? = CO2",
-				"N2text : ??.???????? = N2"
+				"N2text : ??.???????? = N2",
+				"etamtext : ??.???????? = etam"
 			}
 			
 		titleBody = "";  // Title to display (if desired)
@@ -266,20 +254,22 @@ class SJBurner1D extends Element {
 	real H2Otext;
 	real CO2text;
 	real N2text;
+	real etamtext;
 	void textinitiate() {
-		xtext = 0;
+		xtext = 0.;
 		MNtext = MNin; 
 		Vtext = Vin; 
-		CPtext = 0.;//(Psin-p0)/q0;
+		CPtext = (Psin-Ps0)/q0;
 		httext = htin/(Fl_I.ht*BTUcf);
 		Pstext = Psin/(Fl_I.Ps*psicf);
 		Tstext = Tsin/Fl_I.Ts;
 		Aphytext = Ain/(Fl_I.Aphy*in2cf);
-		Artext = Ain/calcAwall(0);
+		Artext = Ain/calcAwall(0.);
 		O2text = Fl_I.getTotalComp("O2");
 		H2Otext = Fl_I.getTotalComp("H2O");
 		CO2text = Fl_I.getTotalComp("CO2");
 		N2text = Fl_I.getTotalComp("N2");
+		etamtext = calcetam(0.);
 				
 		os_EngResultsRow.filename = "EngResults.txt";
 		EngResultsRow.isActive = TRUE;
@@ -289,7 +279,7 @@ class SJBurner1D extends Element {
 		xtext = x+dx;
 	  	MNtext = MNout; 
 		Vtext = Vout; 
-		CPtext = 0.;//(Psout-p0)/q0;
+		CPtext = (Psout-Ps0)/q0;
 		httext = htout/(Fl_I.ht*BTUcf);
 		Pstext = Psout/(Fl_I.Ps*psicf);
 		Tstext = Tsout/Fl_I.Ts;
@@ -299,6 +289,7 @@ class SJBurner1D extends Element {
 		H2Otext = Fl_O.getTotalComp("H2O");
 		CO2text = Fl_O.getTotalComp("CO2");
 		N2text = Fl_O.getTotalComp("N2");
+		etamtext = calcetam(xtext);
 		
 		os_EngResultsRow.filename = "EngResults.txt";
 		EngResultsRow.isActive = TRUE;
@@ -321,8 +312,16 @@ class SJBurner1D extends Element {
 	real R = Fl_I.Rs*BTUcf; // BTU/lbm.R to (f/s)^2/R
 	real Cp = Fl_I.Cps*BTUcf;
 	real gama = Fl_I.gams;
+	real Rein;
+	real muin;
 	real Wair;
 	real FAR0;
+	
+	real MN0 = 7.5;
+	real Ts0 = 100.*KtoR;
+	real Ps0 = 460*Patopsi*psicf;
+	real gama0 = 1.67;
+	real q0 = 0.5*gama0*Ps0*MN0**2;
 	void initiate() {
 		// Reset Win
 		Vin = Fl_I.V;
@@ -366,8 +365,8 @@ class SJBurner1D extends Element {
 	real K = 390.;
 	real Mc;
 	real fMc;
-	real Df = 0.0016*mtoin;
-	real rhof = 0.003;//0.00512; //H2 lbm/ft3 at 300K // 0.004509; 0.003;
+	real Df = (4.*Ajet3/pi)**0.5;
+	real rhof = 0.003;//0.00512; //H2 lbm/ft3 at 300K, only needed for Boyce// 0.004509; 0.003;
 	real aa;
 	real af;
 	
@@ -382,7 +381,10 @@ class SJBurner1D extends Element {
 		fMc = 0.25+0.75*term2;	
 		return ((Df*K*((rhof*Vfx)/(Fl_O.rhos*Fl_O.V))**0.5)/fMc);
 		*/
-		return 0.34*mtoin;;//60*0.0098*mtoin;
+		// Hydrogen normal injection - Hyshot, Lmix = 60G
+		
+		return 60.*0.056*mtoin;//0.34*mtoin;;//60.*0.0098*mtoin;
+		
 	}
 	//-----------------------------------------------------------------------------------------
 	// Hydrogen parallel strut injection
@@ -394,84 +396,97 @@ class SJBurner1D extends Element {
 	real etab = 1.;
 	
 	real calcetam(real x) {
-		// Linear fit
-		/*
-		term1 = etab*lamda*(x-xinj)/(Lmix+(lamda-1.)*(x-xinj));
-		if (term1 < 1.) {
-			return term1;
-		} else {
-			return 1.;
-		}
-		*/
 		x = x-xinj;
-		// Hydrogen parallel strut injection
-		/*
-		// etam = alpha*(1.-e**(-(k*x/Lmix)**d));
-		// Group too many operations in one line will give NaN result
-		term1 = (k*x)/Lmix;
-		term2 = term1**d;
-		term3 = e**(-term2);
-		if (alpha*(1.-term3)<1.) {
-			return alpha*(1.-term3);
-		} else {
-			return 1.;
-		}
-		*/
-		// Hydrogen normal injection
-		/*
-		if (x == 0.) {
+		if (x <= 0.) {
 			return 0.;
-		} else {	
-			term1 = 0.179*Lmix*exp(1.72*phi0);
-			term2 = 1.01+0.176*log(x/term1);
-			if (term2 < 1.) {
-				return term2;
+		} else {			
+			// Linear fit
+			/*
+			term1 = etab*lamda*x/(Lmix+(lamda-1.)*x);
+			if (term1 < 1.) {
+				return term1;
 			} else {
 				return 1.;
 			}
+			*/
+			// Hydrogen parallel strut injection
+			/*
+			// etam = alpha*(1.-e**(-(k*x/Lmix)**d));
+			// Group too many operations in one line will give NaN result
+			term1 = (k*x)/Lmix;
+			term2 = term1**d;
+			term3 = e**(-term2);
+			if (alpha*(1.-term3)<1.) {
+				return alpha*(1.-term3);
+			} else {
+				return 1.;
+			}
+			*/
+			// Hydrogen normal injection
+				
+			term1 = 0.179*Lmix*exp(1.72*phi0);
+			term2 = 1.01+0.176*log(x/term1);
+			if (term2 < 1.) {
+				if (term2 < 0.) {
+					return 0.;
+				} else {
+					return term2;
+				}
+			} else {
+				return 1.;
+			}
+			
+			// Normal or angular injection - Segal
+			/*
+			term1 = x/Lmix;
+			term2 = 1./(50.+1000.*0.25);
+			term3 = (term1+term2)**0.25;
+			if (term3 < 1.) {
+				return term3;
+			} else {
+				return 1.;
+			}
+			*/
 		}
-		*/
-		// Normal or angular injection
+		// Isolator
 		/*
-		term1 = x/Lmix;
-		term2 = 1./(50.+1000.*0.25);
-		term3 = (term1+term2)**0.25;
-		if (term3 < 1.) {
-			return term3;
-		} else {
-			return 1.;
-		}
-		*/
 		return 0.;
+		*/
 	}
 	//-----------------------------------------------------------------------------------------
 	real calcdetamdx(real x, real dx) {
-		// Linear fit
-		/*
-		return etab*lamda/(Lc*(1.+(lamda-1.)*((x-xinj)/Lmix))**2);
-		*/
 		x = x-xinj;
-		// Hydrogen parallel strut injection
-		/*
-		if (x == 0.) {
-			return (-3.*calcetam(x)+4.*calcetam(x+dx)-calcetam(x+2.*dx))/(2.*dx);
+		if (x < 0.) {
+			return 0.;
 		} else {
-			if (calcetam(x) == 1.) {
-				return 0.;
+			// Linear fit
+			/*
+			return etab*lamda/(Lc*(1.+(lamda-1.)*(x/Lmix))**2);
+			*/
+			// Hydrogen parallel strut injection
+			/*
+			if (x == 0.) {
+				return (-3.*calcetam(x)+4.*calcetam(x+dx)-calcetam(x+2.*dx))/(2.*dx);
 			} else {
-				term1 = (k*x)/Lmix;
-				term2 = term1**d;
-				term3 = e**(-term2);
-				term4 = term1**(d-1.);
-				return alpha*d*(k/Lmix)*term3*term4;
+				if (calcetam(x) == 1.) {
+					return 0.;
+				} else {
+					term1 = (k*x)/Lmix;
+					term2 = term1**d;
+					term3 = e**(-term2);
+					term4 = term1**(d-1.);
+					return alpha*d*(k/Lmix)*term3*term4;
+				}
 			}
+			*/
+			// Universal - Difference formula
+			
+			return (-3.*calcetam(x)+4.*calcetam(x+dx)-calcetam(x+2.*dx))/(2.*dx);
 		}
-		*/
-		// Universal - Difference formula
+		// Isolator
 		/*
-		return (-3.*calcetam(x)+4.*calcetam(x+dx)-calcetam(x+2.*dx))/(2.*dx);
-		*/
 		return 0.;
+		*/
 	}
 	//-----------------------------------------------------------------------------------------
 	real calcAwall(real x) {
@@ -531,6 +546,12 @@ class SJBurner1D extends Element {
 	// For calculating Cf
 	real Cf;
 	real _R = 111.*KtoR;
+	real Retrans;
+	real Tref;
+	real Reref;
+	real rhoref;
+	real muref;
+	// For calculating Cf
 	real _T;
 	real _C;
 	real Re;
@@ -588,21 +609,42 @@ class SJBurner1D extends Element {
 		// Dw
 		Dw = (4.*Awall/pi)**0.5;
 		// Cw
-		Cw = pi*Dw*dx;
-		// Taw
+		Cw = pi*Dw*dx*intoft;  // Dw in ft, dx in inch --> ft
+		// Reynold number
+		muin = Fl_Otemp.mut;
+		Rein = rhoin*Vin*Dw/muin;
+		// Transient Reynold
+		term1 = 1.209*(10**(-4))*(MNin**2.641);
+		term2 = 6.421*(e**term1);
+		Retrans = 10**term2;
+		// Cf and qw
 		MNin = Vin/((gama*R*Tsin)**0.5);
-		Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
-		// Cf
-		_T = 0.5*Tw+0.28*Tsin+0.22*Taw;
-		_C = ((Tsin+_R)/(_T+_R))*(_T/Tsin)**0.5;
-		Re = (rhoin*Vin*Dw)/Fl_Otemp.mut;
-		Cf = 0.664*(_C/Re)**0.5;
+		if (Rein >= Retrans) { 
+			// Turbulent 
+			Tref = 0.5*Tsin+0.5*Tw+0.5*0.16*(Pr**(1./3.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.02296/(Reref**0.139);
+			
+			Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
+		} else {
+			// Laminar
+			Tref = 0.45*Tsin+0.55*Tw+0.5*0.16*(Pr**(1./2.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.664/(Reref**0.5);
+			
+			Taw = Tsin*(1.+Pr**(1./2.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(2./3.));
+		}
 		
 		// Test
 		cout << endl;
-		cout << "T* = " << _T << "  ";
-		cout << "C* = " << _C << "  ";
-		cout << "Re = " << Re << "  ";
+		cout << "Rein = " << Rein << "  ";
+		cout << "Retrans = " << Retrans << "  ";
 		cout << "Cf = " << Cf << endl;
 		
 		// drhodP
@@ -623,18 +665,6 @@ class SJBurner1D extends Element {
 		Fstemp2.setTotal_hP(hs2/BTUcf, Psin/psicf);
 		drhodh = (Fstemp2.rhot-Fstemp1.rhot)/(2.*dh);
 		// drhodphi
-		/*
-		Fstemp1.copyFlow("Fl_Otemp");
-		Fstemp2.copyFlow("Fl_Otemp");
-		dphi = 0.001*FAR0/FARstoic; // 0.1; 0.01; 0.001 give close results, starts to diverge at 0.0001	
-		Fu_I.Wfuel = Wair*FARstoic*dphi;
-		Fstemp1.burn("Fu_I", 1.);
-		Fstemp1.setTotal_hP(hsin/BTUcf, Psin/psicf);
-		Fu_I.Wfuel = 2.*Wair*FARstoic*dphi;
-		Fstemp2.burn("Fu_I", 1.);
-		Fstemp2.setTotal_hP(hsin/BTUcf, Psin/psicf);
-		drhodphi = (-3.*Fl_Otemp.rhot+4.*Fstemp1.rhot-Fstemp2.rhot)/(2.*dphi);
-		*/
 		drhodphi = 0.;
 		// Test
 		cout << endl;
@@ -656,11 +686,8 @@ class SJBurner1D extends Element {
 		cout << "Im = " << Im << endl;
 		
 		// Ie
-		term1 = 0.;
-		
-		qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
+		term1 = 0.;		
 		term2 = qw*Cw/(Win*dx);
-		
 		Ie = term1+term2;
 		
 		// Test
@@ -755,21 +782,40 @@ class SJBurner1D extends Element {
 		// Dw
 		Dw = (4.*Awall/pi)**0.5;
 		// Cw
-		Cw = pi*Dw*dx;
-		// Taw
+		Cw = pi*Dw*dx*intoft;
+		// Reynold number
+		muin = Fl_Otemp.mut;
+		Rein = rhoin*Vin*Dw/muin;
+		// Transient Reynold
+		term1 = 1.209*(10**(-4))*(MNin**2.641);
+		term2 = 6.421*(e**term1);
+		Retrans = 10**term2;
+		// Cf and qw
 		MNin = Vin/((gama*R*Tsin)**0.5);
-		Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
-		// Cf
-		_T = 0.5*Tw+0.28*Tsin+0.22*Taw;
-		_C = ((Tsin+_R)/(_T+_R))*(_T/Tsin)**0.5;
-		Re = (rhoin*Vin*Dw)/Fl_Otemp.mut;
-		Cf = 0.664*(_C/Re)**0.5;
+		if (Rein >= Retrans) { 
+			// Turbulent 
+			Tref = 0.5*Tsin+0.5*Tw+0.5*0.16*(Pr**(1./3.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.02296/(Reref**0.139);
+			
+			Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
+		} else {
+			// Laminar
+			Tref = 0.45*Tsin+0.55*Tw+0.5*0.16*(Pr**(1./2.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.664/(Reref**0.5);
+			
+			Taw = Tsin*(1.+Pr**(1./2.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(2./3.));
+		}
 		
 		// Test
 		cout << endl;
-		cout << "T* = " << _T << "  ";
-		cout << "C* = " << _C << "  ";
-		cout << "Re = " << Re << "  ";
 		cout << "Cf = " << Cf << endl;
 		
 		// dW/(W*dx)
@@ -787,10 +833,7 @@ class SJBurner1D extends Element {
 		
 		// Ie
 		term1 = 0.;
-		
-		qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
 		term2 = qw*Cw/(Win*dx);
-		
 		Ie = term1+term2;
 		
 		// Test
@@ -800,7 +843,7 @@ class SJBurner1D extends Element {
 		cout << "Ie = " << Ie << endl;
 		
 		// dPs/dx
-		dPsdx = 0.5*rhoin*(Vin**2)*Cf*89.;
+		dPsdx = 0.5*rhoin*(Vin**2)*Cf*89;
 		// hds/dx
 		dhsdx = dPsdx/rhoin-Im/rhoin+Ie;
 		// dht/dx
@@ -879,7 +922,8 @@ class SJBurner1D extends Element {
 		// Dw
 		Dw = (4.*Awall/pi)**0.5;
 		// Cw
-		Cw = pi*Dw*dx;
+		Cw = pi*Dw*dx*intoft;
+		
 		// Taw
 		MNin = Vin/((gama*R*Tsin)**0.5);
 		Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
@@ -895,7 +939,42 @@ class SJBurner1D extends Element {
 		cout << "C* = " << _C << "  ";
 		cout << "Re = " << Re << "  ";
 		cout << "Cf = " << Cf << endl;
+		/*
+		// Reynold number
+		muin = Fl_Otemp.mut;
+		Rein = rhoin*Vin*Dw/muin;
+		// Transient Reynold
+		term1 = 1.209*(10**(-4))*(MNin**2.641);
+		term2 = 6.421*(e**term1);
+		Retrans = 10**term2;
+		// Cf and qw
+		MNin = Vin/((gama*R*Tsin)**0.5);
+		if (Rein >= Retrans) { 
+			// Turbulent 
+			Tref = 0.5*Tsin+0.5*Tw+0.5*0.16*(Pr**(1./3.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.02296/(Reref**0.139);
+			
+			Taw = Tsin*(1.+Pr**(1./3.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
+		} else {
+			// Laminar
+			Tref = 0.45*Tsin+0.55*Tw+0.5*0.16*(Pr**(1./2.))*(gama-1.)*Tsin*(MNin**2.);
+			rhoref = rhoin*Tsin/Tref;
+			muref = muin*((Tref/Tsin)**1.5)*((Tsin+_R)/(Tref+_R));
+			Reref = rhoref*Vin*Dw/muref;
+			Cf = 0.664/(Reref**0.5);
+			
+			Taw = Tsin*(1.+Pr**(1./2.)*(0.5*(gama-1.)*(MNin**2.)));
+			qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(2./3.));
+		}
 		
+		// Test
+		cout << endl;
+		cout << "Cf = " << Cf << endl;
+		*/
 		// drhodP
 		Fstemp1.copyFlow("Fl_Otemp");
 		Fstemp2.copyFlow("Fl_Otemp");
@@ -914,16 +993,20 @@ class SJBurner1D extends Element {
 		Fstemp2.setTotal_hP(hs2/BTUcf, Psin/psicf);
 		drhodh = (Fstemp2.rhot-Fstemp1.rhot)/(2.*dh);
 		// drhodphi
-		Fstemp1.copyFlow("Fl_Otemp");
-		Fstemp2.copyFlow("Fl_Otemp");
-		dphi = 0.001*FAR0/FARstoic; // 0.1; 0.01; 0.001 give close results, starts to diverge at 0.0001	
-		Fu_I.Wfuel = Wair*FARstoic*dphi;
-		Fstemp1.burn("Fu_I", 1.);
-		Fstemp1.setTotal_hP(hsin/BTUcf, Psin/psicf);
-		Fu_I.Wfuel = 2.*Wair*FARstoic*dphi;
-		Fstemp2.burn("Fu_I", 1.);
-		Fstemp2.setTotal_hP(hsin/BTUcf, Psin/psicf);
-		drhodphi = (-3.*Fl_Otemp.rhot+4.*Fstemp1.rhot-Fstemp2.rhot)/(2.*dphi);
+		if (phi0 == 0.) {
+			drhodphi = 0.;
+		} else {
+			Fstemp1.copyFlow("Fl_Otemp");
+			Fstemp2.copyFlow("Fl_Otemp");
+			dphi = 0.001*FAR0/FARstoic; // 0.1; 0.01; 0.001 give close results, starts to diverge at 0.0001	
+			Fu_I.Wfuel = Wair*FARstoic*dphi;
+			Fstemp1.burn("Fu_I", 1.);
+			Fstemp1.setTotal_hP(hsin/BTUcf, Psin/psicf);
+			Fu_I.Wfuel = 2.*Wair*FARstoic*dphi;
+			Fstemp2.burn("Fu_I", 1.);
+			Fstemp2.setTotal_hP(hsin/BTUcf, Psin/psicf);
+			drhodphi = (-3.*Fl_Otemp.rhot+4.*Fstemp1.rhot-Fstemp2.rhot)/(2.*dphi);
+		}
 		
 		// Test
 		cout << endl;
@@ -950,7 +1033,6 @@ class SJBurner1D extends Element {
 		Fstemp2.burn("Fu_I", 1.);
 		term1 = -(Fstemp2.ht*BTUcf-hsin)/dx;
 		
-		qw = 0.5*rhoin*Vin*Cp*Cf*(Tw-Taw)/(Pr**(1./3.));
 		term2 = qw*Cw/(Win*dx);
 		
 		Ie = term1+term2;
@@ -1047,7 +1129,7 @@ class SJBurner1D extends Element {
 			// Step 1
 			cout << endl;
 			cout << "-----------------Step 1-------------------------------------------" << endl;
-			calcDelc(Psintemp, htintemp, hsintemp, x, dxiatt);
+			calcDeliatt(Psintemp, htintemp, hsintemp, x, dxiatt);
 			k1 = dPsdx;
 			l1 = dhtdx;
 			m1 = dhsdx;
@@ -1055,7 +1137,7 @@ class SJBurner1D extends Element {
 			// Step 2
 			cout << endl;
 			cout << "-----------------Step 2-------------------------------------------" << endl;
-			calcDelc(Psintemp+0.5*k1*dxiatt, htintemp+0.5*l1*dxiatt, hsintemp+0.5*m1*dxiatt, x+0.5*dxiatt, dxiatt);
+			calcDeliatt(Psintemp+0.5*k1*dxiatt, htintemp+0.5*l1*dxiatt, hsintemp+0.5*m1*dxiatt, x+0.5*dxiatt, dxiatt);
 			k2 = dPsdx;
 			l2 = dhtdx;
 			m2 = dhsdx;
@@ -1063,7 +1145,7 @@ class SJBurner1D extends Element {
 			// Step 3
 			cout << endl;
 			cout << "-----------------Step 3-------------------------------------------" << endl;
-			calcDelc(Psintemp+0.5*k2*dxiatt, htintemp+0.5*l2*dxiatt, hsintemp+0.5*m2*dxiatt, x+0.5*dxiatt, dxiatt);
+			calcDeliatt(Psintemp+0.5*k2*dxiatt, htintemp+0.5*l2*dxiatt, hsintemp+0.5*m2*dxiatt, x+0.5*dxiatt, dxiatt);
 			k3 = dPsdx;
 			l3 = dhtdx;
 			m3 = dhsdx;
@@ -1071,7 +1153,7 @@ class SJBurner1D extends Element {
 			// Step 4
 			cout << endl;
 			cout << "-----------------Step 4------------------------------------------" << endl;
-			calcDelc(Psintemp+k3*dxiatt, htintemp+l3*dxiatt, hsintemp+m3*dxiatt, x+dxiatt, dxiatt);
+			calcDeliatt(Psintemp+k3*dxiatt, htintemp+l3*dxiatt, hsintemp+m3*dxiatt, x+dxiatt, dxiatt);
 			k4 = dPsdx;
 			l4 = dhtdx;
 			m4 = dhsdx;
@@ -1109,8 +1191,7 @@ class SJBurner1D extends Element {
 			cout << "Vout = " << Vout << endl;
 			cout << "MNout = " << MNout << endl;
 			cout << endl;
-			cout << "*******************Next Iteration********************" << endl;
-			cout << endl;
+			
 			// Text output
 			textOutputUpdate(x, dxiatt);
 			//-----------------------------------------------------------------------------------------	
@@ -1145,7 +1226,7 @@ class SJBurner1D extends Element {
 			// Step 1
 			cout << endl;
 			cout << "-----------------Step 1-------------------------------------------" << endl;
-			calcDelc(Psintemp, htintemp, hsintemp, x, dxisep);
+			calcDelisep(Psintemp, htintemp, hsintemp, x, dxisep);
 			k1 = dPsdx;
 			l1 = dhtdx;
 			m1 = dhsdx;
@@ -1153,7 +1234,7 @@ class SJBurner1D extends Element {
 			// Step 2
 			cout << endl;
 			cout << "-----------------Step 2-------------------------------------------" << endl;
-			calcDelc(Psintemp+0.5*k1*dxisep, htintemp+0.5*l1*dxisep, hsintemp+0.5*m1*dxisep, x+0.5*dxisep, dxisep);
+			calcDelisep(Psintemp+0.5*k1*dxisep, htintemp+0.5*l1*dxisep, hsintemp+0.5*m1*dxisep, x+0.5*dxisep, dxisep);
 			k2 = dPsdx;
 			l2 = dhtdx;
 			m2 = dhsdx;
@@ -1161,7 +1242,7 @@ class SJBurner1D extends Element {
 			// Step 3
 			cout << endl;
 			cout << "-----------------Step 3-------------------------------------------" << endl;
-			calcDelc(Psintemp+0.5*k2*dxisep, htintemp+0.5*l2*dxisep, hsintemp+0.5*m2*dxisep, x+0.5*dxisep, dxisep);
+			calcDelisep(Psintemp+0.5*k2*dxisep, htintemp+0.5*l2*dxisep, hsintemp+0.5*m2*dxisep, x+0.5*dxisep, dxisep);
 			k3 = dPsdx;
 			l3 = dhtdx;
 			m3 = dhsdx;
@@ -1169,7 +1250,7 @@ class SJBurner1D extends Element {
 			// Step 4
 			cout << endl;
 			cout << "-----------------Step 4------------------------------------------" << endl;
-			calcDelc(Psintemp+k3*dxisep, htintemp+l3*dxisep, hsintemp+m3*dxisep, x+dxisep, dxisep);
+			calcDelisep(Psintemp+k3*dxisep, htintemp+l3*dxisep, hsintemp+m3*dxisep, x+dxisep, dxisep);
 			k4 = dPsdx;
 			l4 = dhtdx;
 			m4 = dhsdx;
@@ -1208,8 +1289,7 @@ class SJBurner1D extends Element {
 			cout << "Vout = " << Vout << endl;
 			cout << "MNout = " << MNout << endl;
 			cout << endl;
-			cout << "*******************Next Iteration********************" << endl;
-			cout << endl;
+			
 			// Text output
 			textOutputUpdate(x, dxisep);
 			//-----------------------------------------------------------------------------------------	
@@ -1314,8 +1394,7 @@ class SJBurner1D extends Element {
 			cout << "Flag = " << flag << endl;
 			cout << "Flag2 = " << flag2 << endl;
 			cout << endl;
-			cout << "*******************Next Iteration********************" << endl;
-			cout << endl;
+	
 			// Text output
 			textOutputUpdate(x, dxc);
 			//-----------------------------------------------------------------------------------------	
@@ -1340,19 +1419,21 @@ class SJBurner1D extends Element {
 	
 	initiate();
 	textinitiate();
+	// Fisher
 	/*
-	xu = Li;//7.086614; //inch
+	xu = 0.155*mtoin;
 	dxiatt = (xu-x2)/Niatt;
 	dxisep = (x3-xu)/Nisep;
 	RKisoatt();
 	RKisosep();
 	*/
+	// Boyce and Hyshot
+
 	Vfx = calcVfx();
 	Lmix = calcLmix();
 	RKc();
-	Fl_O.setTotal_hsPsV(hsout/BTUcf, Psout/psicf, Vout);
-	//Fl_O.Aphy = A/in2cf;
-	//Fl_O.superOrSub = "SUPERSONIC";
+
+	//Fl_O.setTotal_hsPsV(hsout/BTUcf, Psout/psicf, Vout);
   }
   //------------------------------------------------------------
   // register the appropriate errors at build time
