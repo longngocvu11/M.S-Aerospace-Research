@@ -1,0 +1,138 @@
+real mtoin = 39.3701;
+real m2toin2 = 39.3701**2;
+real BTUcf = 25037.;
+real Patopsi = 0.000145038;
+real KtoR = 1.8;
+real kgtolbm = 2.20462;
+
+// Boyce
+
+Amb.MN_in = 2.47;
+Amb.Ps_in = 59000*Patopsi;
+Amb.Ts_in = 1025*KtoR;
+
+BrnPri.Niatt = 100; 
+BrnPri.Nisep = 100; 
+BrnPri.Nc = 200; 
+
+BrnPri.Li = 0.*mtoin;//7.87402; // inch
+BrnPri.Lc = 0.8*mtoin;//11.811; // inch
+
+BrnPri.a1 = 0.0047*m2toin2;
+BrnPri.xa2 = 0.*mtoin;
+BrnPri.a2 = BrnPri.a1;
+BrnPri.a3 = 0.0095*m2toin2;
+
+BrnPri.Tw = 300.*KtoR;
+BrnPri.xinj = 0.;
+BrnPri.Ajet3 = (0.25*3.1416*0.0016**2)*m2toin2;
+BrnPri.FARstoic = 0.0291; // Hydrogen
+BrnPri.phi0 = 0.38;
+
+BrnPri.Pr = 0.72;
+
+// Hyshot - Phi = 0
+/*
+Amb.MN_in = 2.436; 
+Amb.Ps_in = 55256*Patopsi;
+Amb.Ts_in = 1388.4*KtoR;
+
+BrnPri.Niatt = 100; 
+BrnPri.Nisep = 100; 
+BrnPri.Nc = 100; 
+
+BrnPri.Li = 0.*mtoin;
+BrnPri.Lc = (0.242+0.147)*mtoin;
+
+BrnPri.a1 = 0.075*0.0098*m2toin2;
+BrnPri.xa2 = 0.242*mtoin;
+BrnPri.a2 = BrnPri.a1;
+BrnPri.a3 = 0.075*0.041*m2toin2;
+
+BrnPri.Tw = 350.*KtoR;
+BrnPri.xinj = 0.*mtoin;
+BrnPri.Ajet3 = (0.25*3.1416*0.002**2)*m2toin2;
+BrnPri.FARstoic = 0.0291;
+BrnPri.phi0 = 0.;
+
+BrnPri.Pr = 0.9;
+*/
+// Hyshot - Phi = 0.346
+/*
+Amb.MN_in = 2.393; 
+Amb.Ps_in = 44847*Patopsi;
+Amb.Ts_in = 1416.6*KtoR;
+
+BrnPri.Niatt = 100; 
+BrnPri.Nisep = 100; 
+BrnPri.Nc = 100; 
+
+BrnPri.Li = 0.*mtoin;
+BrnPri.Lc = (0.242+0.147)*mtoin;
+
+BrnPri.a1 = 0.075*0.0098*m2toin2;
+BrnPri.xa2 = 0.242*mtoin;
+BrnPri.a2 = BrnPri.a1;
+BrnPri.a3 = 0.075*0.041*m2toin2;
+
+BrnPri.Tw = 350.*KtoR;
+BrnPri.xinj = 0.*mtoin;
+BrnPri.Ajet3 = (0.25*3.1416*0.002**2)*m2toin2;
+BrnPri.FARstoic = 0.0291;
+BrnPri.phi0 = 0.346;
+
+BrnPri.Pr = 0.9;
+*/
+// Fisher
+/*
+Amb.MN_in = 3.5; 
+Amb.Ps_in = 12440*Patopsi;
+Amb.Ts_in = 333*KtoR;
+
+BrnPri.Niatt = 50; 
+BrnPri.Nisep = 50; 
+BrnPri.Nc = 100; 
+
+BrnPri.Li = 0.18*mtoin;
+BrnPri.Lc = 0.*mtoin;
+
+BrnPri.a1 = 0.0018*m2toin2;
+BrnPri.xa2 = 0.*mtoin;
+BrnPri.a2 = BrnPri.a1;
+BrnPri.a3 = BrnPri.a1;
+
+BrnPri.Tw = 300.*KtoR;
+BrnPri.xinj = 0.;
+BrnPri.Ajet3 = 0.;
+BrnPri.FARstoic = 0.0291;
+BrnPri.phi0 = 0.;
+
+BrnPri.Pr = 0.9;
+*/
+
+// MKS
+/*
+Amb.MN_in = 2.65;
+Amb.Ps_in = 50000*Patopsi;
+Amb.Ts_in = 650*KtoR;
+
+BrnPri.Niatt = 10; 
+BrnPri.Nisep = 30; 
+BrnPri.Nc = 50; 
+
+BrnPri.Li = 0.2*mtoin;//7.87402; // inch
+BrnPri.Lc = 0.3*mtoin;//11.811; // inch
+
+BrnPri.a1 = 0.002827*m2toin2;
+BrnPri.xa2 = 0.2*mtoin;
+BrnPri.a2 = BrnPri.a1;
+BrnPri.a3 = 2.*BrnPri.a1;
+
+BrnPri.Tw = 600.*KtoR;
+BrnPri.xinj = 0.2*mtoin;
+BrnPri.Ajet3 = 0.;
+BrnPri.FARstoic = 0.0291; // Hydrogen
+BrnPri.phi0 = 0.72;
+
+BrnPri.Pr = 0.9;
+*/

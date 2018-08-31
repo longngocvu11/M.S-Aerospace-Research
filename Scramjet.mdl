@@ -1,0 +1,68 @@
+//------------------------------------------------------------------------
+//                            Model Definition 
+//------------------------------------------------------------------------
+
+// Instantiate the Ambient element
+// This element sets the ambient conditions
+// and is refered to by the InletStart and Nozzle elements
+
+Element Ambient Amb {
+  switchMode = "PSTSMN"; //"ALDTMN"; // Set ambient conditions based on altitude, Mach number, and standard day delta T 
+  //alt_in = 35000.; // ft, input altitude
+  MN_in = 1.714;// input, Mach number
+  Ps_in = 35.0354;
+  Ts_in = 2841.18;
+  //dTs_in = 0.; // Rankine, input temperature delta from standard day conditions
+} // END Amb
+
+// Instantiate the InletStart element
+
+Element InletStart FsEng {
+  AmbientName = "Amb"; // Name of the Ambient element
+  W_in = 100.; // lbm/s, input air flow flow rate
+} // End InletStart
+
+// Start the flow of fuel
+
+Element FuelStart FusEng {
+	fuelType = "H2";
+} // End FusEng
+
+// Instantiate the Burner element
+
+Element SJBurner1D BrnPri {
+	Niatt = 100;
+	Nisep = 100;
+	Nc = 100;
+	Li = 10.;
+	Lc = 10.;
+	a1 = 1.; a2 = 1.; xa2 = 0.; a3 = 2.;
+	Tw = 300.;
+	xinj = 0.;
+	Ajet3 = 0.;
+	FARstoic = 0.02;
+	phi0 = 1.;
+	Pr = 0.9;
+} // End BrnPri
+
+Element FlowEnd FeEng {
+} // End FrPri
+
+//------------------------------------------------------------------------
+//                           Component Linkages
+//------------------------------------------------------------------------
+
+// Link Fluid Ports
+linkPorts( "FsEng.Fl_O"        , "BrnPri.Fl_I"      , "F020" );
+linkPorts( "BrnPri.Fl_O"       , "FeEng.Fl_I"     , "F040" );
+
+// Set Transport Properties for CEA to calculate Cp
+F020.setOption("switchTransport", "EQUIL");
+F040.setOption("switchTransport", "EQUIL");
+
+// Link Fuel Ports
+linkPorts( "FusEng.Fu_O"   	   , "BrnPri.Fu_I"     , "Fu_In" );
+
+//------------------------------------------------------------------------
+//                           Solver Variables
+//------------------------------------------------------------------------
